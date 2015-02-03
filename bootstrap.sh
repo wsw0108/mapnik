@@ -44,13 +44,7 @@ function install_mason_deps() {
     install icu 54.1
     install proj 4.8.0
     install libtiff 4.0.4beta
-    install boost 1.57.0
-    install boost_libsystem 1.57.0
-    install boost_libthread 1.57.0
-    install boost_libfilesystem 1.57.0
-    install boost_libprogram_options 1.57.0
-    install boost_libregex 1.57.0
-    install boost_libpython 1.57.0
+    install boost_liball 1.49.0
     install libpq 9.4.0
     install sqlite 3.8.8.1
     install gdal 1.11.1

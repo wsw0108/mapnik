@@ -641,8 +641,8 @@ void IntersectPoint(TEdge &Edge1, TEdge &Edge2, IntPoint &ip)
       ip.y = Edge2.Bot.y;
     else
     {
-      b2 = Edge2.Bot.y - (Edge2.Bot.x / Edge2.Dx);
-      ip.y = Round(ip.x / Edge2.Dx + b2);
+      b2 = (double)Edge2.Bot.y - ((double)Edge2.Bot.x / Edge2.Dx);
+      ip.y = Round((double)ip.x / Edge2.Dx + b2);
     }
   }
   else if (Edge2.Delta.x == 0)
@@ -652,14 +652,14 @@ void IntersectPoint(TEdge &Edge1, TEdge &Edge2, IntPoint &ip)
       ip.y = Edge1.Bot.y;
     else
     {
-      b1 = Edge1.Bot.y - (Edge1.Bot.x / Edge1.Dx);
-      ip.y = Round(ip.x / Edge1.Dx + b1);
+      b1 = (double)Edge1.Bot.y - ((double)Edge1.Bot.x / Edge1.Dx);
+      ip.y = Round((double)ip.x / Edge1.Dx + b1);
     }
   } 
   else 
   {
-    b1 = Edge1.Bot.x - Edge1.Bot.y * Edge1.Dx;
-    b2 = Edge2.Bot.x - Edge2.Bot.y * Edge2.Dx;
+    b1 = (double)Edge1.Bot.x - (double)Edge1.Bot.y * Edge1.Dx;
+    b2 = (double)Edge2.Bot.x - (double)Edge2.Bot.y * Edge2.Dx;
     double q = (b2-b1) / (Edge1.Dx - Edge2.Dx);
     ip.y = Round(q);
     if (std::fabs(Edge1.Dx) < std::fabs(Edge2.Dx))

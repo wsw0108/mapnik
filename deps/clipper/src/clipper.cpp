@@ -138,7 +138,7 @@ struct LocMinSorter
 
 inline cInt Round(double val)
 {
-  return static_cast<cInt>(std::round(val));
+  return static_cast<cInt>(std::floor(val + 0.5));
 }
 //------------------------------------------------------------------------------
 

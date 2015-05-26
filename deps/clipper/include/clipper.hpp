@@ -152,8 +152,8 @@ public:
     bool IsHole() const;
     bool IsOpen() const;
     int ChildCount() const;
-private:
     unsigned Index; //node index in Parent.Childs
+private:
     bool m_IsOpen;
     JoinType m_jointype;
     EndType m_endtype;
@@ -170,8 +170,8 @@ public:
     PolyNode* GetFirst() const;
     void Clear();
     int Total() const;
-private:
     PolyNodes AllNodes;
+private:
     friend class MAPNIK_DECL Clipper; //to access AllNodes
 };
 

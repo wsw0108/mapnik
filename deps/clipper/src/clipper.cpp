@@ -48,6 +48,10 @@
 #include <ostream>
 #include <functional>
 
+#ifndef use_int32
+#include <boost/multiprecision/cpp_int.hpp>
+#endif
+
 namespace ClipperLib {
 
 static double const pi = 3.141592653589793238;
@@ -238,7 +242,7 @@ bool PolyNode::IsOpen() const
 //------------------------------------------------------------------------------
 
 #ifndef use_int32
-
+typedef boost::multiprecision::number<boost::multiprecision::cpp_int_backend<128, 128, boost::multiprecision::signed_magnitude, boost::multiprecision::unchecked, void> >     int128_t;
 //------------------------------------------------------------------------------
 // Int128 class (enables safe math on signed 64bit integers)
 // eg Int128 val1((long64)9223372036854775807); //ie 2^63 -1
@@ -246,7 +250,7 @@ bool PolyNode::IsOpen() const
 //    Int128 val3 = val1 * val2;
 //    val3.AsString => "85070591730234615847396907784232501249" (8.5e+37)
 //------------------------------------------------------------------------------
-
+/*
 class Int128
 {
   public:
@@ -348,10 +352,15 @@ class Int128
     }
 
 };
+*/
 //------------------------------------------------------------------------------
 
-Int128 Int128Mul (long64 lhs, long64 rhs)
+int128_t Int128Mul (long64 lhs, long64 rhs)
 {
+  int128_t lhs_(lhs);
+  int128_t rhs_(rhs);
+  return lhs_ * rhs_;
+  /*
   bool negate = (lhs < 0) != (rhs < 0);
 
   if (lhs < 0) lhs = -lhs;
@@ -374,6 +383,7 @@ Int128 Int128Mul (long64 lhs, long64 rhs)
   if (tmp.lo < b) tmp.hi++;
   if (negate) tmp = -tmp;
   return tmp;
+  */
 };
 #endif
 

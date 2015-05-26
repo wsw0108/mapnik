@@ -461,8 +461,8 @@ int PointInPolygon(const IntPoint &pt, const Path &path)
         if (ipNext.x > pt.x) result = 1 - result;
         else
         {
-          double d = (double)(ip.x - pt.x) * (ipNext.y - pt.y) - 
-            (double)(ipNext.x - pt.x) * (ip.y - pt.y);
+          double d = (double)(ip.x - pt.x) * (double)(ipNext.y - pt.y) - 
+            (double)(ipNext.x - pt.x) * (double)(ip.y - pt.y);
           if (!d) return -1;
           if ((d > 0) == (ipNext.y > ip.y)) result = 1 - result;
         }
@@ -470,8 +470,8 @@ int PointInPolygon(const IntPoint &pt, const Path &path)
       {
         if (ipNext.x > pt.x)
         {
-          double d = (double)(ip.x - pt.x) * (ipNext.y - pt.y) - 
-            (double)(ipNext.x - pt.x) * (ip.y - pt.y);
+          double d = (double)(ip.x - pt.x) * (double)(ipNext.y - pt.y) - 
+            (double)(ipNext.x - pt.x) * (double)(ip.y - pt.y);
           if (!d) return -1;
           if ((d > 0) == (ipNext.y > ip.y)) result = 1 - result;
         }
@@ -502,8 +502,8 @@ int PointInPolygon (const IntPoint &pt, OutPt *op)
         if (op->Next->Pt.x > pt.x) result = 1 - result;
         else
         {
-          double d = (double)(op->Pt.x - pt.x) * (op->Next->Pt.y - pt.y) - 
-            (double)(op->Next->Pt.x - pt.x) * (op->Pt.y - pt.y);
+          double d = (double)(op->Pt.x - pt.x) * (double)(op->Next->Pt.y - pt.y) - 
+            (double)(op->Next->Pt.x - pt.x) * (double)(op->Pt.y - pt.y);
           if (!d) return -1;
           if ((d > 0) == (op->Next->Pt.y > op->Pt.y)) result = 1 - result;
         }
@@ -511,8 +511,8 @@ int PointInPolygon (const IntPoint &pt, OutPt *op)
       {
         if (op->Next->Pt.x > pt.x)
         {
-          double d = (double)(op->Pt.x - pt.x) * (op->Next->Pt.y - pt.y) - 
-            (double)(op->Next->Pt.x - pt.x) * (op->Pt.y - pt.y);
+          double d = (double)(op->Pt.x - pt.x) * (double)(op->Next->Pt.y - pt.y) - 
+            (double)(op->Next->Pt.x - pt.x) * (double)(op->Pt.y - pt.y);
           if (!d) return -1;
           if ((d > 0) == (op->Next->Pt.y > op->Pt.y)) result = 1 - result;
         }
@@ -584,7 +584,7 @@ inline bool IsHorizontal(TEdge &e)
 inline double GetDx(const IntPoint pt1, const IntPoint pt2)
 {
   return (pt1.y == pt2.y) ?
-    HORIZONTAL : (double)(pt2.x - pt1.x) / (pt2.y - pt1.y);
+    HORIZONTAL : (double)(pt2.x - pt1.x) / (double)(pt2.y - pt1.y);
 }
 //---------------------------------------------------------------------------
 
@@ -594,7 +594,7 @@ inline void SetDx(TEdge &e)
   e.Delta.y = (e.Top.y - e.Bot.y);
 
   if (e.Delta.y == 0) e.Dx = HORIZONTAL;
-  else e.Dx = (double)(e.Delta.x) / e.Delta.y;
+  else e.Dx = (double)(e.Delta.x) / (double)(e.Delta.y);
 }
 //---------------------------------------------------------------------------
 
@@ -617,7 +617,7 @@ inline void SwapPolyIndexes(TEdge &Edge1, TEdge &Edge2)
 inline cInt TopX(TEdge &edge, const cInt currentY)
 {
   return ( currentY == edge.Top.y ) ?
-    edge.Top.x : edge.Bot.x + Round(edge.Dx *(currentY - edge.Bot.y));
+    edge.Top.x : edge.Bot.x + Round(edge.Dx * (double)(currentY - edge.Bot.y));
 }
 //------------------------------------------------------------------------------
 
@@ -4271,8 +4271,8 @@ void SimplifyPolygons(Paths &polys, PolyFillType fillType)
 
 inline double DistanceSqrd(const IntPoint& pt1, const IntPoint& pt2)
 {
-  double Dx = ((double)pt1.x - pt2.x);
-  double dy = ((double)pt1.y - pt2.y);
+  double Dx = double(pt1.x - pt2.x);
+  double dy = double(pt1.y - pt2.y);
   return (Dx*Dx + dy*dy);
 }
 //------------------------------------------------------------------------------
@@ -4323,8 +4323,8 @@ bool SlopesNearCollinear(const IntPoint& pt1,
 
 bool PointsAreClose(IntPoint pt1, IntPoint pt2, double distSqrd)
 {
-    double Dx = (double)pt1.x - pt2.x;
-    double dy = (double)pt1.y - pt2.y;
+    double Dx = double(pt1.x - pt2.x);
+    double dy = double(pt1.y - pt2.y);
     return ((Dx * Dx) + (dy * dy) <= distSqrd);
 }
 //------------------------------------------------------------------------------

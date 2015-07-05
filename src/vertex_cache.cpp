@@ -30,7 +30,6 @@ namespace mapnik
 
 vertex_cache::vertex_cache(vertex_cache && rhs)
     : current_position_(std::move(rhs.current_position_)),
-      segment_starting_point_(std::move(rhs.segment_starting_point_)),
       subpaths_(std::move(rhs.subpaths_)),
       position_in_segment_(std::move(rhs.position_in_segment_)),
       angle_(std::move(rhs.angle_)),
@@ -45,8 +44,8 @@ vertex_cache::vertex_cache(vertex_cache && rhs)
 
 double vertex_cache::current_segment_angle()
 {
-    return std::atan2(current_segment_->pos.y - segment_starting_point_.y,
-                      current_segment_->pos.x - segment_starting_point_.x);
+    return std::atan2(current_segment_->pos.y - previous_segment_->pos.y,
+                      current_segment_->pos.x - previous_segment_->pos.x);
 }
 
 double vertex_cache::angle(double width)
@@ -97,8 +96,9 @@ bool vertex_cache::next_subpath()
 void vertex_cache::rewind_subpath()
 {
     current_segment_ = current_subpath_->vector.begin();
+    previous_segment_ = current_subpath_->vector.begin();
     //All subpaths contain at least one segment (i.e. the starting point)
-    segment_starting_point_ = current_position_ = current_segment_->pos;
+    current_position_ = current_segment_->pos;
     position_in_segment_ = 0;
     angle_valid_ = false;
     position_ = 0;
@@ -111,7 +111,7 @@ void vertex_cache::reset()
 
 bool vertex_cache::next_segment()
 {
-    segment_starting_point_ = current_segment_->pos; //Next segments starts at the end of the current one
+    previous_segment_ = current_segment_; //Next segments starts at the end of the current one
     if (current_segment_ == current_subpath_->vector.end()) return false;
     current_segment_++;
     angle_valid_ = false;
@@ -127,24 +127,23 @@ bool vertex_cache::previous_segment()
     if (current_segment_ == current_subpath_->vector.begin())
     {
         //First segment is special
-        segment_starting_point_ = current_segment_->pos;
+        previous_segment_ = current_segment_;
         return true;
     }
-    segment_starting_point_ = (current_segment_-1)->pos;
+    previous_segment_--;
     return true;
 }
 
-vertex_cache & vertex_cache::get_offseted(double offset, double region_width)
+vertex_cache & vertex_cache::get_offseted(double offset)
 {
     if (std::fabs(offset) < 0.01)
     {
         return *this;
     }
-
     offseted_lines_map::iterator pos = offseted_lines_.find(offset);
     if (pos == offseted_lines_.end())
     {
-        offset_converter<vertex_cache> converter(*this);
+        offset_converter<vertex_cache> converter(*this, false);
         converter.set_offset(offset);
         pos = offseted_lines_.emplace(offset, std::make_unique<vertex_cache>(converter)).first;
     }
@@ -155,8 +154,9 @@ vertex_cache & vertex_cache::get_offseted(double offset, double region_width)
 
     // find the point on the offset line closest to the current position,
     // which we'll use to make the offset line aligned to this one.
-    double seek = offseted_line->position_closest_to(current_position_);
-    offseted_line->move(seek);
+    int iter_offset = previous_segment_ - current_subpath_->vector.begin();
+    int vec_length = current_subpath_->vector.size();
+    offseted_line->position_closest_to(current_position_, current_subpath_->length, position_, iter_offset, vec_length, offset*offset);
     return *offseted_line;
 }
 
@@ -165,62 +165,144 @@ inline double dist_sq(pixel_position const &d)
     return d.x*d.x + d.y*d.y;
 }
 
-double vertex_cache::position_closest_to(pixel_position const &target_pos)
+void vertex_cache::position_closest_to(pixel_position const &target_pos, 
+                                       double unoffset_path_length,
+                                       double unoffset_position,
+                                       int iter_offset,
+                                       int vec_length,
+                                       double offset_sq)
 {
-    bool first = true;
-    pixel_position old_pos, new_pos;
-    double lin_pos = 0.0, min_pos = 0.0, min_dist_sq = std::numeric_limits<double>::max();
+    // So to speed this up we are making an assumption that the offset line's difference in length
+    // compared to the length of the unoffset line gives us a meaningful range to search within.
+    //
+    // First we find the difference between the two lenghts (this could be negative)
+    double length_difference = current_subpath_->length - unoffset_path_length;
+    
+    // In some cases like a zig zagging line, the difference in total length could be near zero
+    // but this will not help find the correct point quickly as it will be shifted in correctly.
+    // Therefore we will shift the search range to be a percentage of the total length by
+    // overwriting the length difference.
+    /*if (length_difference < unoffset_path_length * 0.05)
+    {
+        length_difference = unoffset_path_length * 0.05; // At most will search 20% of the total length
+    }*/
+
+    // The starting position will be based on the expected position and the length difference
+    double start_pos = unoffset_position;
+    if (length_difference < 0.0)
+    {
+        start_pos += 2.5 * length_difference;
+    }
+    else 
+    {
+        start_pos -= 1.5 * length_difference;
+    }
+    
+    if (start_pos < 0.0)
+    {
+        start_pos = 0.0;
+    }
+
+    int vec_diff = current_subpath_->vector.size() - vec_length;
+
+    if (vec_diff < 0)
+    {
+        iter_offset += vec_diff;
+        if (iter_offset < 0)
+        {
+            iter_offset = 0;
+        }
+    }
+
+    // Where to stop searching.
+    double end_pos = start_pos + 2.0 * std::abs(length_difference);
+    double end_pos2 = start_pos + 3.0 * std::abs(length_difference);
+    
+    // First subpath is intial point and is special so lets skip forward!
+    current_segment_ += iter_offset;
+    if (current_segment_ == current_subpath_->vector.begin())
+    {
+        previous_segment_ = current_segment_;
+        current_segment_++;
+    }
+    else
+    {
+        previous_segment_ = current_segment_ - 1;
+    }
+    position_ = previous_segment_->total_length;
+
+    if (start_pos < position_)
+    {
+        move(start_pos - position_);
+    }
+
+    // Save the initial state.
+    current_position_ = previous_segment_->pos;
+    state s = save_state();
+    position_ -= position_in_segment_;
+    position_in_segment_ = 0.0; 
+
+    // Finding the closet distance from the segment to the 
+    // Find the fartherest position we will search
+    double min_dist_sq = std::numeric_limits<double>::max();
+    bool last = false;
 
     // find closest approach of each individual segment to the
     // target position. would be good if there were some kind
     // of prior, or fast test to avoid calculating on each
     // segment, but i can't think of one.
-    for (segment const &seg : current_subpath_->vector)
+    offset_sq *= 1.2;
+    int count = 0;
+    do
     {
-        if (first)
+        count++;
+        if (position_ > end_pos && (position_ > end_pos2 || min_dist_sq <= offset_sq))
         {
-            old_pos = seg.pos;
-            min_pos = lin_pos;
-            min_dist_sq = dist_sq(target_pos - old_pos);
-            first = false;
-
+            last = true;
         }
-        else
+        
+        double t_minus_p_x = target_pos.x - previous_segment_->pos.x;
+        double t_minus_p_y = target_pos.y - previous_segment_->pos.y;
+        double end_dist_sq = t_minus_p_x*t_minus_p_x + t_minus_p_y*t_minus_p_y;
+        if (end_dist_sq < min_dist_sq)
         {
-            new_pos = seg.pos;
+            min_dist_sq = end_dist_sq;
+            current_position_ = previous_segment_->pos;
+            s = save_state();
+        }
 
-            pixel_position d = new_pos - old_pos;
-            if ((d.x != 0.0) || (d.y != 0))
+        double dx = current_segment_->pos.x - previous_segment_->pos.x;
+        double dy = current_segment_->pos.y - previous_segment_->pos.y;
+        if ((dx != 0.0) || (dy != 0.0))
+        {
+            double t = (t_minus_p_x * dx + t_minus_p_y * dy) / (dx*dx + dy*dy);
+
+            if ((t >= 0.0) && (t <= 1.0))
             {
-                pixel_position c = target_pos - old_pos;
-                double t = (c.x * d.x + c.y * d.y) / dist_sq(d);
+                double pt_x = target_pos.x - ((dx * t) + previous_segment_->pos.x);
+                double pt_y = target_pos.y - ((dy * t) + previous_segment_->pos.y);
+                double pt_dist_sq = pt_x*pt_x + pt_y*pt_y;
 
-                if ((t >= 0.0) && (t <= 1.0))
+                if (pt_dist_sq < min_dist_sq)
                 {
-                    pixel_position pt = (d * t) + old_pos;
-                    double pt_dist_sq = dist_sq(target_pos - pt);
-
-                    if (pt_dist_sq < min_dist_sq)
-                    {
-                        min_dist_sq = pt_dist_sq;
-                        min_pos = lin_pos + seg.length * t;
-                    }
+                    min_dist_sq = pt_dist_sq;
+                    position_in_segment_ = current_segment_->length * t;
+                    position_ += position_in_segment_;
+                    double factor = position_in_segment_ / current_segment_->length;
+                    current_position_ = previous_segment_->pos + (current_segment_->pos - previous_segment_->pos) * factor;
+                    s = save_state();
+                    position_ -= position_in_segment_;
+                    position_in_segment_ = 0.0; 
                 }
             }
-
-            old_pos = new_pos;
-            lin_pos += seg.length;
-
-            double end_dist_sq = dist_sq(target_pos - old_pos);
-            if (end_dist_sq < min_dist_sq)
-            {
-                min_dist_sq = end_dist_sq;
-                min_pos = lin_pos;
-            }
         }
-    }
 
-    return min_pos;
+        position_ += current_segment_->length;
+        previous_segment_ = current_segment_; //Next segments starts at the end of the current one
+        current_segment_++;
+    }
+    while (current_segment_ != current_subpath_->vector.end() && !last);
+    restore_state(s);
 }
 
 bool vertex_cache::forward(double length)
@@ -261,7 +343,7 @@ bool vertex_cache::move(double length)
     }
     double factor = length / current_segment_->length;
     position_in_segment_ = length;
-    current_position_ = segment_starting_point_ + (current_segment_->pos - segment_starting_point_) * factor;
+    current_position_ = previous_segment_->pos + (current_segment_->pos - previous_segment_->pos) * factor;
     return true;
 }
 
@@ -291,7 +373,7 @@ bool vertex_cache::move_to_distance(double distance)
             }
             while (new_abs_distance < abs_distance);
 
-            inner_pos = segment_starting_point_;
+            inner_pos = previous_segment_->pos;
             outer_pos = current_segment_->pos;
         }
         else
@@ -300,19 +382,19 @@ bool vertex_cache::move_to_distance(double distance)
             {
                 if (!previous_segment()) return false;
                 position_ -= current_segment_->length;
-                new_abs_distance = (current_position_ - segment_starting_point_).length();
+                new_abs_distance = (current_position_ - previous_segment_->pos).length();
             }
             while (new_abs_distance < abs_distance);
 
             inner_pos = current_segment_->pos;
-            outer_pos = segment_starting_point_;
+            outer_pos = previous_segment_->pos;
         }
 
         find_line_circle_intersection(current_position_.x, current_position_.y, abs_distance,
             inner_pos.x, inner_pos.y, outer_pos.x, outer_pos.y,
             current_position_.x, current_position_.y);
 
-        position_in_segment_ = (current_position_ - segment_starting_point_).length();
+        position_in_segment_ = (current_position_ - previous_segment_->pos).length();
         position_ += position_in_segment_;
     }
     else
@@ -321,7 +403,7 @@ bool vertex_cache::move_to_distance(double distance)
         distance += position_in_segment_;
         double factor = distance / current_segment_->length;
         position_in_segment_ = distance;
-        current_position_ = segment_starting_point_ + (current_segment_->pos - segment_starting_point_) * factor;
+        current_position_ = previous_segment_->pos + (current_segment_->pos - previous_segment_->pos) * factor;
     }
     return true;
 }
@@ -352,9 +434,9 @@ vertex_cache::state vertex_cache::save_state() const
 {
     state s;
     s.current_segment = current_segment_;
+    s.previous_segment = previous_segment_;
     s.position_in_segment = position_in_segment_;
     s.current_position = current_position_;
-    s.segment_starting_point = segment_starting_point_;
     s.position_ = position_;
     return s;
 }
@@ -362,9 +444,9 @@ vertex_cache::state vertex_cache::save_state() const
 void vertex_cache::restore_state(state const& s)
 {
     current_segment_ = s.current_segment;
+    previous_segment_ = s.previous_segment;
     position_in_segment_ = s.position_in_segment;
     current_position_ = s.current_position;
-    segment_starting_point_ = s.segment_starting_point;
     position_ = s.position_;
     angle_valid_ = false;
 }

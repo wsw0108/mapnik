@@ -47,9 +47,10 @@ class MAPNIK_DECL vertex_cache : util::noncopyable
 {
     struct segment
     {
-        segment(double x, double y, double _length) : pos(x, y), length(_length) {}
+        segment(double x, double y, double _length, double _total_length) : pos(x, y), length(_length), total_length(_total_length) {}
         pixel_position pos; //Last point of this segment, first point is implicitly defined by the previous segement in this vector
         double length;
+        double total_length;
     };
 
     // The first segment always has the length 0 and just defines the starting point.
@@ -58,8 +59,8 @@ class MAPNIK_DECL vertex_cache : util::noncopyable
         segment_vector() : vector(), length(0.) {}
         void add_segment(double x, double y, double len) {
             if (len == 0. && !vector.empty()) return; //Don't add zero length segments
-            vector.emplace_back(x, y, len);
             length += len;
+            vector.emplace_back(x, y, len, length);
         }
         using iterator = std::vector<segment>::iterator;
         std::vector<segment> vector;
@@ -72,9 +73,9 @@ public:
     class state
     {
         segment_vector::iterator current_segment;
+        segment_vector::iterator previous_segment;
         double position_in_segment;
         pixel_position current_position;
-        pixel_position segment_starting_point;
         double position_;
         friend class vertex_cache;
     public:
@@ -109,7 +110,7 @@ public:
 
 
     // Returns a parallel line in the specified distance.
-    vertex_cache & get_offseted(double offset, double region_width);
+    vertex_cache & get_offseted(double offset);
 
 
     // Skip a certain amount of space.
@@ -137,7 +138,12 @@ public:
     void reset();
 
     // position on this line closest to the target position
-    double position_closest_to(pixel_position const &target_pos);
+    void position_closest_to(pixel_position const &target_pos, 
+                             double unoffset_path_length,
+                             double unoffset_position,
+                             int iter_offset,
+                             int vec_length,
+                             double offset_sq);
 
 private:
     void rewind_subpath();
@@ -149,14 +155,14 @@ private:
         double & ix, double & iy) const;
     // Position as calculated by last move/forward/next call.
     pixel_position current_position_;
-    // First pixel of current segment.
-    pixel_position segment_starting_point_;
     // List of all subpaths.
     std::vector<segment_vector> subpaths_;
     // Currently active subpath.
     std::vector<segment_vector>::iterator current_subpath_;
     // Current segment for normal operation (move()).
     segment_vector::iterator current_segment_;
+    // Previous segment for normal operation (move()).
+    segment_vector::iterator previous_segment_;
     // Current segment in compatibility mode (vertex(), rewind()).
     segment_vector::iterator vertex_segment_;
     // Currently active subpath in compatibility mode.
@@ -181,10 +187,10 @@ private:
 template <typename T>
 vertex_cache::vertex_cache(T & path)
         : current_position_(),
-          segment_starting_point_(),
           subpaths_(),
           current_subpath_(),
           current_segment_(),
+          previous_segment_(),
           vertex_segment_(),
           vertex_subpath_(),
           initialized_(false),

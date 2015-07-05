@@ -13,6 +13,7 @@
 #include <tuple>
 #include <algorithm>
 
+/*
 struct fake_path
 {
     using coord_type = std::tuple<double, double, unsigned>;
@@ -193,4 +194,4 @@ SECTION("line") {
         REQUIRE(false);
     }
 }
-}
+}*/

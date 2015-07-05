@@ -44,7 +44,7 @@ struct offset_converter
 {
     using size_type = std::size_t;
 
-    offset_converter(Geometry & geom)
+    offset_converter(Geometry & geom, bool round_corners = true)
         : geom_(geom)
         , offset_(0.0)
         , threshold_(5.0)
@@ -53,6 +53,7 @@ struct offset_converter
         , pre_first_(vertex2d::no_init)
         , pre_(vertex2d::no_init)
         , cur_(vertex2d::no_init)
+        , round_corners_(round_corners)
         {}
 
     enum status
@@ -387,7 +388,7 @@ private:
 
             int bulge_steps = 0;
 
-            if (std::abs(joint_angle) > M_PI)
+            if (round_corners_ && std::abs(joint_angle) > M_PI)
             {
                 curve_angle = explement_reflex_angle(angle_b - angle_a);
                 // Bulge steps should be determined by the inverse of the joint angle. 
@@ -491,7 +492,7 @@ private:
 
             int bulge_steps = 0;
 
-            if (std::abs(joint_angle) > M_PI)
+            if (round_corners_ && std::abs(joint_angle) > M_PI)
             {
                 curve_angle = explement_reflex_angle(angle_b - angle_a);
                 // Bulge steps should be determined by the inverse of the joint angle. 
@@ -589,6 +590,7 @@ private:
     vertex2d                pre_first_;
     vertex2d                pre_;
     vertex2d                cur_;
+    bool                    round_corners_;
 };
 
 }

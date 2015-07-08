@@ -12,10 +12,13 @@ all: mapnik
 install:
 	$(PYTHON) scons/scons.py -j$(JOBS) --config=cache --implicit-cache --max-drift=1 install
 
+python-test:
+	MAPNIK_INPUT_PLUGINS_DIRECTORY=./plugins/input MAPNIK_FONT_DIRECTORY=./fonts PYTHONPATH=bindings/python/ python bindings/python/test/visual.py -q
+	MAPNIK_INPUT_PLUGINS_DIRECTORY=./plugins/input MAPNIK_FONT_DIRECTORY=./fonts PYTHONPATH=bindings/python/ python bindings/python/test/run_tests.py -q
+
 python:
 	if [ ! -d ./bindings/python ]; then git clone git@github.com:mapnik/python-mapnik.git --recursive ./bindings/python; else (cd bindings/python && git pull && git submodule update --init); fi;
 	make
-	python bindings/python/test/visual.py -q
 
 src/json/libmapnik-json.a:
 	# we first build memory intensive files with -j1

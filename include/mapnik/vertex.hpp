@@ -40,6 +40,7 @@ enum CommandType : std::uint8_t {
 template <typename T,int dim>
 struct vertex {
     using coord_type = T;
+    using value_type = T;
 };
 
 template <typename T>
@@ -48,6 +49,7 @@ struct vertex<T,2>
     enum no_init_t : std::uint8_t { no_init };
 
     using coord_type = T;
+    using value_type = T;
     coord_type x;
     coord_type y;
     unsigned cmd;

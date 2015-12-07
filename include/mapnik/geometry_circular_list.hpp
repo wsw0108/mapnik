@@ -28,6 +28,8 @@
 #include <mapnik/geometry.hpp>
 // boost
 #include <boost/intrusive/circular_list_algorithms.hpp>
+// stl
+#include <algorithm>
 
 namespace mapnik
 {

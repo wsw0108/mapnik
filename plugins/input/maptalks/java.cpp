@@ -45,7 +45,7 @@ void java::create_jvm(JavaVM **jvm, JNIEnv **env) {
   classpath << "-Djava.class.path=";
   for (int i = 0; i < paths.size(); ++i) {
     if (i != 0) {
-#ifdef WIN32
+#ifdef _WINDOWS
       classpath << ";";
 #else
       classpath << ":";
